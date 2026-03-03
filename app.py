@@ -80,15 +80,23 @@ def run_analysis(files_to_process, fields, services, model_name, provider="opena
     
     # Save results
     if results:
-        df_res = pd.DataFrame(results)
-        # Convert all values to strings to avoid PyArrow mixed type errors
-        # (LLM can return lists, strings, or None for the same field across papers)
-        df_display = df_res.astype(str)
-        st.dataframe(df_display)
+        # Make results JSON-safe (stringify everything)
+        safe_results = []
+        for r in results:
+            if isinstance(r, dict):
+                row = {}
+                for k, v in r.items():
+                    row[str(k)] = "" if v is None else str(v)
+                safe_results.append(row)
+            else:
+                safe_results.append({"value": str(r)})
+
+        st.markdown("### Analysis Results")
+        st.json(safe_results)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_filename = f"results/analysis_results_{timestamp}.xlsx"
-        ExcelHandler.save_results(results, output_filename)
+        ExcelHandler.save_results(safe_results, output_filename)
         st.success(f"Analysis complete! Saved to {output_filename}")
         
         with open(output_filename, "rb") as f:
